@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key});
+  final VoidCallback onBack;
+  const OrdersScreen({super.key, required this.onBack});
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -118,15 +119,14 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        title: const Center(child: Text("My Orders")),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'My Orders',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 22,
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
         ),
-        backgroundColor: Colors.green[800],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,

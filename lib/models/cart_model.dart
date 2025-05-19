@@ -1,20 +1,26 @@
 class CartItem {
   final String id;
   final Product product;
+  final String priceId;
+  final String userId;
   final int quantity;
   final int subTotal;
 
   CartItem({
     required this.id,
     required this.product,
+    required this.priceId,
+    required this.userId,
     required this.quantity,
     required this.subTotal,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
-      id: json['id'],
+      id: json['_id'],
       product: Product.fromJson(json['productId']),
+      priceId: json['priceId'],
+      userId: json['userId'],
       quantity: json['quantity'],
       subTotal: json['subTotal'],
     );
@@ -40,7 +46,7 @@ class Product {
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['id'],
+      id: json['_id'],
       name: json['name'],
       description: json['description'],
       images: List<String>.from(json['images']),
@@ -56,7 +62,7 @@ class Price {
   final int quantity;
   final int actualPrice;
   final int oldPrice;
-  final int discount;
+  final double discount;
   final String type;
   final int countInStock;
 
@@ -74,7 +80,7 @@ class Price {
       quantity: json['quantity'],
       actualPrice: json['actualPrice'],
       oldPrice: json['oldPrice'],
-      discount: json['discount'],
+      discount: json['discount'].toDouble(),
       type: json['type'],
       countInStock: json['countInStock'],
     );

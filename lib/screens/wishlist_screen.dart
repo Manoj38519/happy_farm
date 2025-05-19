@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WishlistScreen extends StatefulWidget {
-  const WishlistScreen({super.key});
+  final VoidCallback onBack;
+  const WishlistScreen({super.key, required this.onBack});
 
   @override
   State<WishlistScreen> createState() => _WishlistScreenState();
@@ -146,12 +147,14 @@ class _WishlistScreenState extends State<WishlistScreen>
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        title: const Center(child: Text("My Wishlist")),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'My Wishlist',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
         ),
-        backgroundColor: Colors.green[800],
         actions: [
           Center(
             child: Container(

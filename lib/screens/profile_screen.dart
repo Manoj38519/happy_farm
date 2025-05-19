@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:happy_farm/screens/personal_info.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback onBack;
+  const ProfileScreen({super.key, required this.onBack});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -59,15 +60,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Center(child: const Text("My Profile")),
+        title: const Center(child: Text("My Profile")),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back), // popup/back arrow
-          onPressed: () {
-            Navigator.pop(context); // or your custom back logic
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
         ),
         actions: [
           Padding(
@@ -181,9 +180,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'title': 'Security',
         'subtitle': 'Change password and security settings',
         'function': () {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => ProfileScreen(),
-          ));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                onBack: () => Navigator.pop(context),
+              ),
+            ),
+          );
         }
       },
       {
@@ -191,9 +195,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'title': 'Help & Support',
         'subtitle': 'Get assistance and answers',
         'function': () {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => ProfileScreen(),
-          ));
+         Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                onBack: () => Navigator.pop(context),
+              ),
+            ),
+          );
         }
       },
       {

@@ -7,8 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class CartScreen extends StatefulWidget {
   final String userId;
+  final VoidCallback onBack;
 
-  const CartScreen({super.key, required this.userId});
+  const CartScreen({super.key, required this.userId, required this.onBack});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -20,7 +21,8 @@ class _CartScreenState extends State<CartScreen> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
-    final Uri url = Uri.parse("https://api.sabbafarm.com/api/cart?userId=$userId");
+    final Uri url =
+        Uri.parse("https://api.sabbafarm.com/api/cart?userId=$userId");
 
     final response = await http.get(
       url,
@@ -81,9 +83,7 @@ class _CartScreenState extends State<CartScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: widget.onBack,
         ),
         actions: [
           Padding(

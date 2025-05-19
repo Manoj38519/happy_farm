@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:happy_farm/main.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:happy_farm/screens/signup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import "dart:io";
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
@@ -62,9 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
               responseData['message'] ?? 'Login failed. Please try again.';
         });
       }
-    } catch (e, stackTrace) {
-      print('OSError: $e');
-      print('StackTrace: $stackTrace');
+    } catch (e) {
       setState(() {
         _errorMessage = 'Error: $e';
       });
@@ -132,26 +131,15 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Login Required'),
-            content: const Text('Please log in for features.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(), // Close dialog
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        return false; // prevent back navigation
-      },
+      onWillPop: ()async {
+      // Exit the app when back button is pressed
+      if (Platform.isAndroid) {
+        SystemNavigator.pop(); // or exit(0)
+      } else if (Platform.isIOS) {
+        exit(0);
+      }
+      return false; // prevent default pop behavior
+    },
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(

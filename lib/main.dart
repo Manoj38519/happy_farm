@@ -28,6 +28,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
@@ -36,6 +37,7 @@ class MyHttpOverrides extends HttpOverrides {
           (X509Certificate cert, String host, int port) => true;
   }
 }
+
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
 
@@ -56,17 +58,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? token = prefs.getString('token');
-  String? userId = prefs.getString('userId');
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    String? userId = prefs.getString('userId');
 
-  setState(() {
-    _isLoggedIn = token != null && userId != null;
-    _userId = userId;
-    _selectedIndex = 0; // Always default to Home
-    _isCheckingLogin = false;
-  });
-}
+    setState(() {
+      _isLoggedIn = token != null && userId != null;
+      _userId = userId;
+      _selectedIndex = 0; // Always default to Home
+      _isCheckingLogin = false;
+    });
+  }
 
   void _onItemTapped(int index) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -87,15 +89,26 @@ class _MainScreenState extends State<MainScreen> {
         _userId = userId;
       });
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please login first"),
-          backgroundColor: Colors.redAccent,
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Login Required'),
+          content: const Text('Please log in to use the wishlist feature.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // Close dialog
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
     }
@@ -111,10 +124,31 @@ class _MainScreenState extends State<MainScreen> {
 
     final List<Widget> screens = [
       const HomeScreen(),
-      const OrdersScreen(),
-      const WishlistScreen(),
-      CartScreen(userId: _userId ?? ''),
-      const ProfileScreen(),
+      OrdersScreen(
+        onBack: () {
+          setState(() {
+            _selectedIndex = 0; 
+          });
+        },
+      ),
+      WishlistScreen(onBack: () {
+    setState(() {
+      _selectedIndex = 0;
+    });
+  },),
+      CartScreen(
+        userId: _userId ?? '',
+        onBack: () {
+          setState(() {
+            _selectedIndex = 0; 
+          });
+        },
+      ),
+      ProfileScreen(onBack: () {
+    setState(() {
+      _selectedIndex = 0; 
+    });
+  },),
     ];
 
     return Scaffold(
