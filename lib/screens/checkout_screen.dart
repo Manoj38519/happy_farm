@@ -20,7 +20,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  final Razorpay _razorpay = Razorpay();
+  late Razorpay _razorpay;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -37,8 +37,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
     _loadUserData();
   }
 
@@ -73,9 +75,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId') ?? '';
-
     final verifyResponse = await http.post(
       Uri.parse('https://api.sabbafarm.com/api/payment/verify-order'),
       headers: {'Content-Type': 'application/json','Authorization': '$token'},
@@ -103,6 +102,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       SnackBar(content: Text('Payment failed: ${response.message}')),
     );
   }
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    print("External Wallet: ${response.walletName}");
+  }
 
   String? _orderIdFromBackend;
 
@@ -119,12 +121,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'phoneNumber': _phoneController.text,
       'address': address,
       'pincode': _zipController.text,
-      'email': _emailController.text,
-      'userid': userId,
-      'products': cartItems,
-      'amount': totalAmount,
+      'email': _emailController.text
     };
-  print('body:$body');
     try {
       final response = await http.post(
         Uri.parse('https://api.sabbafarm.com/api/payment/create-order'),
@@ -133,6 +131,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       final data = jsonDecode(response.body);
+      print("data:$data");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final orderData = data['data'];
@@ -140,7 +139,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             orderData['orderId']; // Save for later verification
 
         final options = {
-          'key': 'rzp_live_DJA2rvcCmZFLh3', // from .env or config
+          'key': 'rzp_live_DJA2rvcCmZFLh3', 
           'amount': orderData['amount'],
           'currency': orderData['currency'] ?? 'INR',
           'name': 'E-Bharat',
@@ -151,7 +150,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             'email': _emailController.text,
             'contact': _phoneController.text,
           },
-          'theme': {'color': '#3399cc'}
+          'theme': {'color': '#007B4F'}
         };
 
         _razorpay.open(options);
@@ -173,7 +172,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text("Checkout")),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Color(0xFF007B4F),
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(

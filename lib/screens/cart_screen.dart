@@ -78,7 +78,7 @@ class _CartScreenState extends State<CartScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Center(child: Text("My Cart")),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Color(0xFF007B4F),
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(

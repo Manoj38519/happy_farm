@@ -148,7 +148,7 @@ class _WishlistScreenState extends State<WishlistScreen>
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Center(child: Text("My Wishlist")),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Color(0xFF007B4F),
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
