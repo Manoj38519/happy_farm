@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
-import 'package:happy_farm/screens/home_screen.dart';
+import 'package:happy_farm/screens/Order_details.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -113,7 +113,18 @@ class _OrdersScreenState extends State<OrdersScreen>
                         itemCount: filteredOrders.length,
                         itemBuilder: (context, index) {
                           final order = filteredOrders[index];
-                          return OrderCard(order: order);
+                          return OrderCard(
+                            order: order,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => OrderDetailsPage(
+                                      orderId: order['id'].toString()),
+                                ),
+                              );
+                            },
+                          );
                         },
                       );
                     }).toList(),
@@ -139,9 +150,10 @@ class _OrdersScreenState extends State<OrdersScreen>
 }
 
 class OrderCard extends StatelessWidget {
+  final VoidCallback onTap;
   final Map order;
 
-  OrderCard({required this.order});
+  OrderCard({required this.order, required this.onTap});
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -181,77 +193,81 @@ class OrderCard extends StatelessWidget {
         double.tryParse(order['amount'].toString())?.toStringAsFixed(2) ??
             '0.00';
 
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                    "ORD${order['id'].toString().substring(0, 6).toUpperCase()}",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color:
-                        _getStatusColor(order['orderStatus']).withOpacity(0.1),
-                    border: Border.all(
-                        color: _getStatusColor(order['orderStatus'])),
-                    borderRadius: BorderRadius.circular(20),
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                      "ORD${order['id'].toString().substring(0, 6).toUpperCase()}",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(order['orderStatus'])
+                          .withOpacity(0.1),
+                      border: Border.all(
+                          color: _getStatusColor(order['orderStatus'])),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_getStatusIcon(order['orderStatus']),
+                            color: _getStatusColor(order['orderStatus']),
+                            size: 16),
+                        SizedBox(width: 4),
+                        Text(order['orderStatus'].toString().capitalize(),
+                            style: TextStyle(
+                                color: _getStatusColor(order['orderStatus']),
+                                fontSize: 12)),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(_getStatusIcon(order['orderStatus']),
-                          color: _getStatusColor(order['orderStatus']),
-                          size: 16),
-                      SizedBox(width: 4),
-                      Text(order['orderStatus'].toString().capitalize(),
-                          style: TextStyle(
-                              color: _getStatusColor(order['orderStatus']),
-                              fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            Divider(),
-            // Order info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Order Date\n$orderDate", style: TextStyle(fontSize: 13)),
-                Text("Items\n${order['products'].length} items",
-                    style: TextStyle(fontSize: 13)),
-                Text("Total\n₹$totalAmount",
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green)),
-              ],
-            ),
-            Divider(),
-            // Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Icon(Icons.location_on, size: 20, color: Color(0xFF007B4F)),
-                Text("Track", style: TextStyle(color: Color(0xFF007B4F))),
-                VerticalDivider(),
-                Icon(Icons.remove_red_eye, size: 20, color: Colors.grey),
-                Text("Details", style: TextStyle(color: Colors.grey)),
-                VerticalDivider(),
-                Icon(Icons.refresh, size: 20, color: Colors.blue),
-                Text("Re-order", style: TextStyle(color: Colors.blue)),
-              ],
-            )
-          ],
+                ],
+              ),
+              Divider(),
+              // Order info
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Order Date\n$orderDate",
+                      style: TextStyle(fontSize: 13)),
+                  Text("Items\n${order['products'].length} items",
+                      style: TextStyle(fontSize: 13)),
+                  Text("Total\n₹$totalAmount",
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green)),
+                ],
+              ),
+              Divider(),
+              // Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Icon(Icons.location_on, size: 20, color: Color(0xFF007B4F)),
+                  Text("Track", style: TextStyle(color: Color(0xFF007B4F))),
+                  VerticalDivider(),
+                  Icon(Icons.remove_red_eye, size: 20, color: Colors.grey),
+                  Text("Details", style: TextStyle(color: Colors.grey)),
+                  VerticalDivider(),
+                  Icon(Icons.refresh, size: 20, color: Colors.blue),
+                  Text("Re-order", style: TextStyle(color: Colors.blue)),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );
