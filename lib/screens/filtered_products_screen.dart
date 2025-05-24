@@ -79,11 +79,11 @@ class _FilteredProductsScreenState extends State<FilteredProductsScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
-                                           FilteredProductDetails(product: product),
+                                           ProductDetails(product: product),
                                     ),
                                   );
                                 },
-                                child: FilteredProductCard(product: product),
+                                child: UniversalProductCard(product: product),
                               );
                             },
                           ),

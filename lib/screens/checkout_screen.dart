@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/cart_model.dart';
+import 'package:happy_farm/utils/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:happy_farm/service/checkout_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
@@ -20,6 +22,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
+  final checkoutService = CheckoutService();
   late Razorpay _razorpay;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -53,46 +56,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     userId = prefs.getString('userId');
-    token = prefs.getString('token');
 
-    if (userId != null && token != null) {
-      final response = await http.get(
-        Uri.parse('https://api.sabbafarm.com/api/user/$userId'),
-        headers: {'Authorization': '$token'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+    if (userId != null) {
+      final data = await checkoutService.fetchUserDetails(userId!);
+      if (data != null) {
         setState(() {
           _nameController.text = data['name'] ?? '';
           _phoneController.text = data['phone'] ?? '';
           _emailController.text = data['email'] ?? '';
         });
-      } else {
-        debugPrint("Failed to fetch user details");
       }
     }
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    final verifyResponse = await http.post(
-      Uri.parse('https://api.sabbafarm.com/api/payment/verify-order'),
-      headers: {'Content-Type': 'application/json','Authorization': '$token'},
-      body: jsonEncode({
-        'razorpay_order_id': response.orderId,
-        'razorpay_payment_id': response.paymentId,
-        'razorpay_signature': response.signature,
-        'orderId': _orderIdFromBackend,
-      }),
+    void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final verified = await checkoutService.verifyPayment(
+      razorpayOrderId: response.orderId!,
+      razorpayPaymentId: response.paymentId!,
+      razorpaySignature: response.signature!,
+      orderId: _orderIdFromBackend!,
     );
 
-    if (verifyResponse.statusCode == 200) {
+    if (verified) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order placed successfully!')),
+        const SnackBar(content: Text('Order placed successfully!')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment verification failed')),
+        const SnackBar(content: Text('Payment verification failed')),
       );
     }
   }
@@ -108,61 +99,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String? _orderIdFromBackend;
 
-  Future<void> _submitForm(List<CartItem> cartItems, int totalAmount) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId') ?? '';
-    final token =prefs.getString('token');
-
-    final address =
+ Future<void> _submitForm() async {
+    final fullAddress =
         '${_address1Controller.text}, ${_address2Controller.text}, ${_cityController.text}, ${_stateController.text}, ${_countryController.text}';
 
-    final body = {
-      'name': _nameController.text,
-      'phoneNumber': _phoneController.text,
-      'address': address,
-      'pincode': _zipController.text,
-      'email': _emailController.text
-    };
-    try {
-      final response = await http.post(
-        Uri.parse('https://api.sabbafarm.com/api/payment/create-order'),
-        headers: {'Content-Type': 'application/json','Authorization': '$token'},
-        body: jsonEncode(body),
-      );
+    final orderResponse = await checkoutService.createOrder(
+      name: _nameController.text,
+      phoneNumber: _phoneController.text,
+      email: _emailController.text,
+      address: fullAddress,
+      pincode: _zipController.text,
+    );
 
-      final data = jsonDecode(response.body);
-      print("data:$data");
+    if (orderResponse != null) {
+      final orderData = orderResponse['data'];
+      _orderIdFromBackend = orderData['orderId'];
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final orderData = data['data'];
-        _orderIdFromBackend =
-            orderData['orderId']; // Save for later verification
+      final options = {
+        'key': 'rzp_live_DJA2rvcCmZFLh3',
+        'amount': orderData['amount'],
+        'currency': orderData['currency'] ?? 'INR',
+        'name': 'E-Bharat',
+        'description': 'Payment for your order',
+        'order_id': orderData['order_id'],
+        'prefill': {
+          'name': _nameController.text,
+          'email': _emailController.text,
+          'contact': _phoneController.text,
+        },
+        'theme': {'color': '#007B4F'}
+      };
 
-        final options = {
-          'key': 'rzp_live_DJA2rvcCmZFLh3', 
-          'amount': orderData['amount'],
-          'currency': orderData['currency'] ?? 'INR',
-          'name': 'E-Bharat',
-          'description': 'Payment for your order',
-          'order_id': orderData['order_id'],
-          'prefill': {
-            'name': _nameController.text,
-            'email': _emailController.text,
-            'contact': _phoneController.text,
-          },
-          'theme': {'color': '#007B4F'}
-        };
-
-        _razorpay.open(options);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Failed to create order')),
-        );
-      }
-    } catch (e) {
-      print('Submit error: $e');
+      _razorpay.open(options);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong')),
+        const SnackBar(content: Text('Failed to create order')),
       );
     }
   }
@@ -171,8 +142,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text("Checkout")),
-        backgroundColor: Color(0xFF007B4F),
+        centerTitle: true,
+        title: Text("Checkout"),
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -181,19 +153,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Navigator.pop(context);
           },
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -365,7 +324,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    _submitForm(cartItems, totalAmount);
+                    _submitForm();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

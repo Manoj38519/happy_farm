@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Colors based on Sabbafarm website
-  static const Color primaryColor =  Color(0xFF007B4F); // Green color from the website
+  static const Color primaryColor =  Color.fromARGB(255, 56, 142, 60); // Green color from the website
   static const Color accentColor = Color(0xFF8BC34A);  // Light green
   static const Color textDarkColor = Color(0xFF333333);
   static const Color backgroundColor = Color(0xFFF5F5F5);
   
   // Light theme
   static final ThemeData lightTheme = ThemeData(
-    primaryColor: primaryColor,
+    primaryColor: Colors.green.shade700,
     colorScheme: ColorScheme.light(
       primary: primaryColor,
       secondary: accentColor,

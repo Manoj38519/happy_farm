@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 class UpdateUserPage extends StatefulWidget {
-  final String name, email, phone, address;
+  final String name, email, phone;
 
   const UpdateUserPage({
     super.key,
     required this.name,
     required this.email,
     required this.phone,
-    required this.address,
   });
 
   @override
@@ -19,7 +18,6 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
   late TextEditingController nameCtrl;
   late TextEditingController emailCtrl;
   late TextEditingController phoneCtrl;
-  late TextEditingController addressCtrl;
 
   @override
   void initState() {
@@ -27,7 +25,6 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
     nameCtrl = TextEditingController(text: widget.name);
     emailCtrl = TextEditingController(text: widget.email);
     phoneCtrl = TextEditingController(text: widget.phone);
-    addressCtrl = TextEditingController(text: widget.address);
   }
 
   @override
@@ -35,7 +32,6 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
     nameCtrl.dispose();
     emailCtrl.dispose();
     phoneCtrl.dispose();
-    addressCtrl.dispose();
     super.dispose();
   }
 
@@ -47,7 +43,8 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -58,7 +55,8 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
                     children: [
                       const CircleAvatar(
                         radius: 45,
-                        backgroundImage: AssetImage('assets/images/profile.png'),
+                        backgroundImage:
+                            AssetImage('assets/images/profile.png'),
                       ),
                       CircleAvatar(
                         radius: 12,
@@ -71,12 +69,12 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
                   _buildTextField('Full Name', nameCtrl, Icons.person),
                   _buildTextField('Email Address', emailCtrl, Icons.email),
                   _buildPhoneField(),
-                  _buildTextField('Home Address', addressCtrl, Icons.home),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 14),
                     ),
                     onPressed: () {
                       // Submit logic
@@ -97,7 +95,8 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildTextField(
+      String label, TextEditingController controller, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: TextField(
@@ -138,7 +137,8 @@ class _UpdateUserPageState extends State<UpdateUserPage> {
               decoration: InputDecoration(
                 hintText: '1234 5678 9101',
                 prefixIcon: const Icon(Icons.phone),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               keyboardType: TextInputType.phone,
             ),

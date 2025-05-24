@@ -1,26 +1,20 @@
 class CartItem {
   final String id;
   final Product product;
-  final String priceId;
-  final String userId;
   final int quantity;
   final int subTotal;
 
   CartItem({
     required this.id,
     required this.product,
-    required this.priceId,
-    required this.userId,
     required this.quantity,
     required this.subTotal,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
-      id: json['_id'],
+      id: json['id'],
       product: Product.fromJson(json['productId']),
-      priceId: json['priceId'],
-      userId: json['userId'],
       quantity: json['quantity'],
       subTotal: json['subTotal'],
     );
@@ -34,6 +28,9 @@ class Product {
   final List<String> images;
   final List<Price> prices;
   final int rating;
+  final String? category;
+  final String? subCategory;
+
 
   Product({
     required this.id,
@@ -42,11 +39,13 @@ class Product {
     required this.images,
     required this.prices,
     required this.rating,
+    required this.category,
+    required this.subCategory,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['_id'],
+      id: json['id'],
       name: json['name'],
       description: json['description'],
       images: List<String>.from(json['images']),
@@ -54,6 +53,8 @@ class Product {
           .map((price) => Price.fromJson(price))
           .toList(),
       rating: json['rating'],
+      category: json['category'] as String?,
+      subCategory: json['subCategory'],
     );
   }
 }
@@ -80,7 +81,7 @@ class Price {
       quantity: json['quantity'],
       actualPrice: json['actualPrice'],
       oldPrice: json['oldPrice'],
-      discount: json['discount'].toDouble(),
+      discount: json['discount'],
       type: json['type'],
       countInStock: json['countInStock'],
     );

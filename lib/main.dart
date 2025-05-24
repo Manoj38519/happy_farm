@@ -1,18 +1,29 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:happy_farm/models/user_provider.dart';
+import 'package:happy_farm/screens/login_screen.dart';
 import 'package:happy_farm/screens/order_screen.dart';
 import 'package:happy_farm/screens/profile_screen.dart';
 import 'package:happy_farm/screens/wishlist_screen.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:happy_farm/screens/cart_screen.dart';
-import 'package:happy_farm/screens/login_screen.dart';
 import 'package:happy_farm/screens/home_screen.dart';
 import 'utils/app_theme.dart';
+import 'package:http/http.dart' as http;
 
 void main() {
   HttpOverrides.global = MyHttpOverrides();
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -37,7 +48,6 @@ class MyHttpOverrides extends HttpOverrides {
           (X509Certificate cert, String host, int port) => true;
   }
 }
-
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
 
@@ -55,6 +65,36 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _checkLoginStatus();
+    getUser();
+  }
+
+  Future<void> getUser() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    String? userId = prefs.getString('userId');
+    if (userId != null && token != null) {
+      final url = Uri.parse('https://api.sabbafarm.com/api/user/$userId');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': '$token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print(data['name']);
+
+        Provider.of<UserProvider>(context, listen: false).setUser(
+          username: data['name'],
+          email: data['email'],
+          phoneNumber: data['phone'],
+        );
+      } else {
+        print('Failed to load profile: ${response.statusCode}');
+      }
+    }
   }
 
   Future<void> _checkLoginStatus() async {
@@ -65,53 +105,15 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _isLoggedIn = token != null && userId != null;
       _userId = userId;
-      _selectedIndex = 0; // Always default to Home
+      _selectedIndex = 0;
       _isCheckingLogin = false;
     });
   }
 
-  void _onItemTapped(int index) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-    String? userId = prefs.getString('userId');
-
-    // Always allow Home
-    if (index == 0) {
-      setState(() {
-        _selectedIndex = index;
-      });
-      return;
-    }
-
-    if (token != null && userId != null) {
-      setState(() {
-        _selectedIndex = index;
-        _userId = userId;
-      });
-    } else {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Login Required'),
-          content: const Text('Please log in to use the wishlist feature.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(), // Close dialog
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
@@ -122,40 +124,32 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    final List<Widget> screens = [
-      const HomeScreen(),
-      OrdersScreen(
-        onBack: () {
-          setState(() {
-            _selectedIndex = 0; 
-          });
-        },
-      ),
-      WishlistScreen(onBack: () {
-    setState(() {
-      _selectedIndex = 0;
-    });
-  },),
-      CartScreen(
-        userId: _userId ?? '',
-        onBack: () {
-          setState(() {
-            _selectedIndex = 0; 
-          });
-        },
-      ),
-      ProfileScreen(onBack: () {
-    setState(() {
-      _selectedIndex = 0; 
-    });
-  },),
-    ];
+    if (!_isLoggedIn) {
+      return const LoginScreen(); // Navigate to LoginScreen directly
+    }
+
+    Widget _getScreen(int index) {
+      switch (index) {
+        case 0:
+          return const HomeScreen();
+        case 1:
+          return const OrdersScreen();
+        case 2:
+          return const WishlistScreen();
+        case 3:
+          return CartScreen(userId: _userId ?? '');
+        case 4:
+          return const ProfileScreen();
+        default:
+          return const HomeScreen();
+      }
+    }
 
     return Scaffold(
-      body: screens[_selectedIndex],
+      body: _getScreen(_selectedIndex),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFF007B4F),
+          color: Color.fromARGB(255, 56, 142, 60),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -174,7 +168,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           child: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            backgroundColor: const Color(0xFF007B4F),
+            backgroundColor: AppTheme.primaryColor,
             selectedItemColor: Colors.white,
             unselectedItemColor: Colors.white70,
             selectedFontSize: 12,

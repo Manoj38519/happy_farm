@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/cart_model.dart';
 import 'package:happy_farm/screens/checkout_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:happy_farm/screens/productdetails_screen.dart';
+import 'package:happy_farm/widgets/cart_shimmer.dart';
+import 'package:happy_farm/service/cart_service.dart';
 
 class CartScreen extends StatefulWidget {
   final String userId;
-  final VoidCallback onBack;
 
-  const CartScreen({super.key, required this.userId, required this.onBack});
+  const CartScreen({super.key, required this.userId});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -17,59 +16,10 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   late Future<List<CartItem>> cartFuture;
-  static Future<List<CartItem>> fetchCart(String userId) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
-
-    final Uri url =
-        Uri.parse("https://api.sabbafarm.com/api/cart?userId=$userId");
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': token,
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['data'] is List) {
-        return (data['data'] as List)
-            .map((item) => CartItem.fromJson(item))
-            .toList();
-      } else {
-        throw Exception('Unexpected response format');
-      }
-    } else {
-      print("Error: ${response.statusCode} - ${response.body}");
-      throw Exception('Failed to load cart data');
-    }
-  }
-
-  static Future<bool> deleteCartItem(String cartItemId) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
-    final url = Uri.parse('https://api.sabbafarm.com/api/cart/$cartItemId');
-    final response = await http.delete(
-      url,
-      headers: {
-        'Authorization': '$token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return true;
-    } else {
-      throw Exception('Failed to delete cart item');
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    cartFuture = fetchCart(widget.userId);
+    cartFuture = CartService.fetchCart(widget.userId);
   }
 
   @override
@@ -77,33 +27,18 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Center(child: Text("My Cart")),
-        backgroundColor: Color(0xFF007B4F),
+        title: Text("My Cart"),
+        centerTitle: true,
+        backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ],
+        automaticallyImplyLeading: false,
       ),
       body: FutureBuilder<List<CartItem>>(
         future: cartFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CartShimmer());
           } else if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -137,72 +72,86 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildCartItem(CartItem item) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                item.product.images.first,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-              ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (builder) => ProductDetails(
+              product: item.product,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.product.name,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Rs.${item.product.prices[0].actualPrice.toStringAsFixed(2)}",
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
+          ),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300)),
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  item.product.images.first,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-            Column(
-              children: [
-                IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () async {
-                      bool success = await deleteCartItem(item.id);
-                      if (success) {
-                        setState(() {
-                          cartFuture = fetchCart(widget.userId); // refresh cart
-                        });
-                      }
-                    }),
-                const SizedBox(height: 10),
-                Row(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline,
-                          color: Colors.deepOrange),
-                      onPressed: () {},
+                    Text(
+                      item.product.name,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
                     ),
-                    Text(item.quantity.toString()),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline,
-                          color: Colors.green),
-                      onPressed: () {},
+                    const SizedBox(height: 4),
+                    Text(
+                      "Rs.${item.product.prices[0].actualPrice.toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ],
+              ),
+              Column(
+                children: [
+                  IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () async {
+                        bool success = await CartService.deleteCartItem(item.id);
+                        if (success) {
+                          setState(() {
+                            cartFuture =
+                                CartService.fetchCart(widget.userId); // refresh cart
+                          });
+                        }
+                      }),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline,
+                            color: Colors.deepOrange),
+                        onPressed: () {},
+                      ),
+                      Text(item.quantity.toString()),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline,
+                            color: Colors.green),
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

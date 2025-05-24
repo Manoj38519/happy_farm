@@ -1,15 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:happy_farm/screens/filtered_products_screen.dart';
 import 'package:happy_farm/screens/productdetails_screen.dart';
+import 'package:happy_farm/service/home_service.dart';
+import 'package:happy_farm/widgets/shimmer_widget.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
-import '../widgets/shimmer_widget.dart';
 import '../widgets/custom_app_bar.dart';
 import '../models/banner_model.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:async';
-// import 'package:happy_farm/screens/productdetails_screen.dart';
 
 enum HomePageView { home, menu, filtered }
 
@@ -44,8 +43,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<FilterProducts> _filteredProducts = [];
   int _visibleFeaturedCount = 2;
   int _visibleAllCount = 2;
-  int _visibleFilteredCount=10;
+  int _visibleFilteredCount = 10;
   String selectedCatId = '';
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _searchResults = [];
+  bool isSearch = false;
   @override
   void initState() {
     super.initState();
@@ -54,21 +56,41 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchCategories();
   }
 
+  final HomeService _homeService = HomeService();
+
+  void _onSearchChanged(String query) async {
+    setState(() {
+      isSearch = query.isNotEmpty;
+    });
+
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
+
+    try {
+      final results = await _homeService.searchProducts(query);
+      setState(() {
+        _searchResults = results;
+      });
+    } catch (e) {
+      print('Search error: $e');
+      setState(() {
+        _searchResults = [];
+      });
+    }
+  }
+
   Future<void> fetchCategories() async {
-    const url =
-        'https://api.sabbafarm.com/api/category'; // Adjust endpoint if needed
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final decoded = json.decode(response.body);
-      final List data = decoded['categoryList'];
-      final categories = data.map((e) => CategoryModel.fromJson(e)).toList();
-
+    try {
+      final categories = await _homeService.fetchCategories();
       setState(() {
         _categories = categories;
       });
-    } else {
-      throw Exception('Failed to load categories');
+    } catch (e) {
+      print('Error loading categories: $e');
     }
   }
 
@@ -81,158 +103,83 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = true;
     });
 
-    String baseUrl = 'https://api.sabbafarm.com/api/products';
-    String categoryId = selectedCatId; // Ensure this is set before calling
-    String url = '';
-
-    if (rating != null) {
-      url = '$baseUrl/rating?catId=$categoryId&rating=$rating';
-    } else if (minPrice != null && maxPrice != null) {
-      url =
-          '$baseUrl/filterByPrice?minPrice=$minPrice&maxPrice=$maxPrice&catId=$categoryId';
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
     try {
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        final List data = decoded['products'];
-
-        final List<FilterProducts> products = data
-            .map<FilterProducts>((json) => FilterProducts.fromJson(json))
-            .toList();
-
-        if (products.isNotEmpty) {
-          // Navigate to FilteredProductsScreen
-          if (context.mounted) {
-            setState(() {
-              _filteredProducts = _filteredProducts; // Assign the result
-              _currentPage = HomePageView.filtered;
-            });
-          }
-        } else {
-          // Show message if no products
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No filtered products found.'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        }
+      final products = await _homeService.fetchFilteredProducts(
+        categoryId: selectedCatId,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        rating: rating,
+      );
+      if (products.isNotEmpty) {
+        setState(() {
+          _filteredProducts = products;
+          _currentPage = HomePageView.filtered;
+        });
       } else {
-        throw Exception('Failed to load products');
-      }
-    } catch (e) {
-      debugPrint('Error fetching products: $e');
-      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('No filtered products found.'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
+    } catch (e) {
+      debugPrint('Error fetching filtered products: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> fetchFeaturedProducts() async {
-    const url =
-        'https://api.sabbafarm.com/api/products/featured'; // Replace with your real URL
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final List data = json.decode(response.body);
-      final List<FeaturedProduct> products = data
-          .map((product) => FeaturedProduct.fromJson(
-              product)) // Assuming Product model has a `fromJson` method
-          .toList();
+    try {
+      final products = await _homeService.fetchFeaturedProducts();
       setState(() {
         _featuredProducts = products;
-        _isLoading = false; // Update loading status
+        _isLoading = false;
       });
-    } else {
-      throw Exception('Failed to load featured products');
+    } catch (e) {
+      print('Error: $e');
     }
   }
 
   Future<void> _fetchProductsByCategory(String catName) async {
-    final url = 'https://api.sabbafarm.com/api/products/catName?catName=$catName';
-
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        final List data =
-            decoded['products']; // Make sure this matches your API
-
-        final List<FilterProducts> products = data
-            .map<FilterProducts>((json) => FilterProducts.fromJson(json))
-            .toList();
-
-        setState(() {
-          _filteredProducts = products;
-        });
-      } else {
-        throw Exception('Failed to load products for $catName');
-      }
+      final products = await _homeService.fetchProductsByCategory(catName);
+      setState(() {
+        _filteredProducts = products;
+      });
     } catch (e) {
-      debugPrint('Error fetching products: $e');
+      debugPrint('Error fetching category products: $e');
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
-Future<void> fetchAllProducts() async {
-  const url = 'https://api.sabbafarm.com/api/products'; // Your backend API
 
-  try {
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final decoded = json.decode(response.body);
-
-      if (decoded['products'] != null && decoded['products'] is List) {
-        final List data = decoded['products'];
-
-        final List<AllProduct> products = data
-            .map((productJson) => AllProduct.fromJson(productJson))
-            .toList();
-
-        setState(() {
-          _allProducts = products;
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Invalid product list format');
-      }
-    } else {
-      throw Exception('Failed to load all products: ${response.statusCode}');
+  Future<void> fetchAllProducts() async {
+    try {
+      final products = await _homeService.fetchAllProducts();
+      setState(() {
+        _allProducts = products;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching all products: $e');
     }
-  } catch (e) {
-    print('Error fetching products: $e');
-    // You might want to show a Snackbar or error widget
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -242,15 +189,78 @@ Future<void> fetchAllProducts() async {
         onMenuTap:
             _currentPage == HomePageView.menu ? _onCloseMenu : _onMenuTap,
         showCloseButton: _currentPage == HomePageView.menu,
+        searchController: _searchController,
+        onSearchChanged: _onSearchChanged,
       ),
+      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
-        child: _buildBodyContent(),
+        child: isSearch ? _buildSearchResults() : _buildBodyContent(),
       ),
     );
   }
 
   Widget _buildLoadingView() {
     return const ShimmerHomeScreen();
+  }
+
+  Widget _buildSearchResults() {
+    if (_searchResults.isEmpty) {
+      return const Center(child: Text('No results found'));
+    }
+
+    return ListView.builder(
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final product = _searchResults[index];
+        final imageUrl =
+            (product['images'] != null && product['images'].isNotEmpty)
+                ? product['images'][0]
+                : null;
+        final priceInfo =
+            (product['prices'] != null && product['prices'].isNotEmpty)
+                ? product['prices'][0]
+                : null;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: ListTile(
+            leading: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image),
+                  )
+                : const Icon(Icons.image_not_supported),
+            title: Text(product['name'] ?? 'Unnamed Product'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (priceInfo != null)
+                  Text(
+                    'Price: ₹${priceInfo['actualPrice']}',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                if (product['catName'] != null)
+                  Text('Category: ${product['catName']}'),
+              ],
+            ),
+            onTap: () {
+              final productInstance = AllProduct.fromJson(product);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (builder) =>
+                      ProductDetails(product: productInstance),
+                ),
+              );
+              // Navigate to product details screen with product['_id']
+            },
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildBodyContent() {
@@ -508,6 +518,9 @@ Future<void> fetchAllProducts() async {
               _buildCategorySection(),
               _buildSectionTitle('Featured Products'),
               _buildFeaturedProducts(),
+              SizedBox(
+                height: 20,
+              ),
               _buildSectionTitle('All Products'),
               _buildAllProducts(),
             ],
@@ -582,6 +595,8 @@ Future<void> fetchAllProducts() async {
                         color: Color(int.parse(
                             category.color.replaceFirst('#', '0xff'))),
                         shape: BoxShape.circle,
+                        border:
+                            Border.all(width: 0, color: Colors.grey.shade300),
                         image: DecorationImage(
                           image: NetworkImage(category.imageUrl),
                           fit: BoxFit.cover,
@@ -612,39 +627,174 @@ Future<void> fetchAllProducts() async {
     final visibleProducts =
         _featuredProducts.take(_visibleFeaturedCount).toList();
 
-    return Column(
-      children: [
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.7,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+      child: Column(
+        children: [
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+              childAspectRatio: 0.60,
+            ),
+            itemCount: visibleProducts.length,
+            itemBuilder: (context, index) {
+              final product = visibleProducts[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetails(product: product),
+                    ),
+                  );
+                },
+                child: UniversalProductCard(product: product),
+              );
+            },
           ),
-          itemCount: visibleProducts.length,
-          itemBuilder: (context, index) {
-            final product = visibleProducts[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        FeaturedProductDetails(product: product),
+          if (_visibleFeaturedCount < _featuredProducts.length)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _visibleFeaturedCount += 5;
+                  if (_visibleFeaturedCount > _featuredProducts.length) {
+                    _visibleFeaturedCount = _featuredProducts.length;
+                  }
+                });
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color.fromARGB(255, 1, 140, 255),
+              ),
+              child: const Text('View All'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllProducts() {
+    if (_allProducts.isEmpty) {
+      return const Center(child: Text('No products available.'));
+    }
+
+    final visibleProducts = _allProducts.take(_visibleAllCount).toList();
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
+        child: Column(
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Keep aspect ratio consistent
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 2,
+                    mainAxisSpacing: 2,
+                    childAspectRatio: 0.60,
                   ),
+                  itemCount: visibleProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = visibleProducts[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                ProductDetails(product: product),
+                          ),
+                        );
+                      },
+                      child: UniversalProductCard(product: product),
+                    );
+                  },
                 );
               },
-              child: FeaturedProductCard(product: product),
-            );
-          },
+            ),
+            const SizedBox(height: 10),
+            if (_visibleAllCount < _allProducts.length)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _visibleAllCount += 5;
+                      if (_visibleAllCount > _allProducts.length) {
+                        _visibleAllCount = _allProducts.length;
+                      }
+                    });
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color.fromARGB(255, 1, 140, 255),
+                  ),
+                  child: const Text('View All'),
+                ),
+              ),
+            const SizedBox(height: 20),
+          ],
         ),
-        if (_visibleFeaturedCount < _featuredProducts.length)
+      ),
+    );
+  }
+
+  Widget _buildFilteredProducts(List<FilterProducts> filteredProducts) {
+    if (filteredProducts.isEmpty) {
+      return const Center(
+        child: Text(
+          "No products found.",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      );
+    }
+
+    final visibleFilteredProducts =
+        filteredProducts.take(_visibleFilteredCount).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: visibleFilteredProducts.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.60,
+            ),
+            itemBuilder: (context, index) {
+              final product = visibleFilteredProducts[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProductDetails(product: product),
+                    ),
+                  );
+                },
+                child: UniversalProductCard(product: product),
+              );
+            },
+          ),
+        ),
+        if (_visibleFilteredCount < filteredProducts.length)
           TextButton(
             onPressed: () {
               setState(() {
-                _visibleFeaturedCount += 5;
-                if (_visibleFeaturedCount > _featuredProducts.length) {
-                  _visibleFeaturedCount = _featuredProducts.length;
+                _visibleFilteredCount += 5;
+                if (_visibleFilteredCount > filteredProducts.length) {
+                  _visibleFilteredCount = filteredProducts.length;
                 }
               });
             },
@@ -656,148 +806,6 @@ Future<void> fetchAllProducts() async {
       ],
     );
   }
-
-Widget _buildAllProducts() {
-  if (_allProducts.isEmpty) {
-    return const Center(child: Text('No products available.'));
-  }
-
-  final visibleProducts = _allProducts.take(_visibleAllCount).toList();
-
-  return SingleChildScrollView(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8),
-      child: Column(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate screen width
-              double screenWidth = MediaQuery.of(context).size.width;
-
-              // Adjust crossAxisCount based on screen width for responsiveness
-              int crossAxisCount = screenWidth > 600 ? 3 : 2;
-              double spacing = 10;
-
-              // Keep aspect ratio consistent
-              double aspectRatio = 0.75; // e.g., width:height = 3:4
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
-                  childAspectRatio: aspectRatio,
-                ),
-                itemCount: visibleProducts.length,
-                itemBuilder: (context, index) {
-                  final product = visibleProducts[index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AllProductDetails(product: product),
-                        ),
-                      );
-                    },
-                    child: AllProductCard(product: product),
-                  );
-                },
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          if (_visibleAllCount < _allProducts.length)
-            Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                onPressed: () {
-                  setState(() {
-                    _visibleAllCount += 5;
-                    if (_visibleAllCount > _allProducts.length) {
-                      _visibleAllCount = _allProducts.length;
-                    }
-                  });
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color.fromARGB(255, 1, 140, 255),
-                ),
-                child: const Text('View All'),
-              ),
-            ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    ),
-  );
-}
-
-
-
-  Widget _buildFilteredProducts(List<FilterProducts> filteredProducts) {
-  if (filteredProducts.isEmpty) {
-    return const Center(
-      child: Text(
-        "No products found.",
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-
-  final visibleFilteredProducts =
-      filteredProducts.take(_visibleFilteredCount).toList();
-
-  return Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: visibleFilteredProducts.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.65,
-          ),
-          itemBuilder: (context, index) {
-            final product = visibleFilteredProducts[index];
-            return  GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FilteredProductDetails(product: product),
-                  ),
-                );
-              },
-              child: FilteredProductCard(product: product),
-            );
-          },
-        ),
-      ),
-      if (_visibleFilteredCount < filteredProducts.length)
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _visibleFilteredCount += 5;
-              if (_visibleFilteredCount > filteredProducts.length) {
-                _visibleFilteredCount = filteredProducts.length;
-              }
-            });
-          },
-          style: TextButton.styleFrom(
-            foregroundColor: const Color.fromARGB(255, 1, 140, 255),
-          ),
-          child: const Text('View All'),
-        ),
-    ],
-  );
-}
-
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -823,6 +831,8 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
   int _currentIndex = 0;
   Timer? _timer;
 
+  final HomeService _homeService = HomeService(); // Add this
+
   @override
   void initState() {
     super.initState();
@@ -830,21 +840,14 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
   }
 
   Future<void> fetchBanners() async {
-    const url =
-        'https://api.sabbafarm.com/api/homeBanner/'; // Replace with your real URL
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final List data = json.decode(response.body);
-      final banners = data.map((e) => BannerModel.fromJson(e)).toList();
+    try {
+      final banners = await _homeService.fetchBanners(); // Use service
       setState(() {
         _banners = banners;
       });
-
-      // Start auto-scroll once banners are loaded
       _startAutoScroll();
-    } else {
-      throw Exception('Failed to load banners');
+    } catch (e) {
+      print('Error fetching banners: $e');
     }
   }
 
@@ -853,9 +856,7 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
       if (_banners.isEmpty) return;
 
       int nextPage = _currentIndex + 1;
-
       if (nextPage >= _banners.length) {
-        // Jump to first page without animation
         _pageController.jumpToPage(0);
         _currentIndex = 0;
       } else {
@@ -876,10 +877,11 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 250.0,
+      height: 180.0,
       child: _banners.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : PageView.builder(
@@ -898,14 +900,6 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12.0),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.7),
-                        ],
-                      ),
                     ),
                     padding: const EdgeInsets.all(16.0),
                     child: const Align(

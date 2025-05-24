@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
 import 'package:happy_farm/screens/Order_details.dart';
+import 'package:happy_farm/utils/app_theme.dart';
+import 'package:happy_farm/widgets/order_shimmer.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OrdersScreen extends StatefulWidget {
-  final VoidCallback onBack;
-  const OrdersScreen({super.key, required this.onBack});
+  const OrdersScreen({super.key, });
   @override
   _OrdersScreenState createState() => _OrdersScreenState();
 }
@@ -41,11 +42,12 @@ class _OrdersScreenState extends State<OrdersScreen>
 
       final response =
           await http.get(Uri.parse("https://api.sabbafarm.com/api/orders/"));
-
       if (response.statusCode == 200) {
         final allOrders = json.decode(response.body);
         final userOrders =
             allOrders.where((order) => order['userid'] == userId).toList();
+
+        print(userOrders);
 
         setState(() {
           orders = userOrders;
@@ -64,17 +66,14 @@ class _OrdersScreenState extends State<OrdersScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text("My Orders")),
-        backgroundColor: Color(0xFF007B4F),
+        title: Text("My Orders"),
+        centerTitle: true,
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
-        ),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: OrderShimmer())
           : Column(
               children: [
                 Container(
@@ -143,7 +142,7 @@ class _OrdersScreenState extends State<OrdersScreen>
         },
         label: Text('Shop More'),
         icon: Icon(Icons.storefront),
-        backgroundColor: Color(0xFF007B4F),
+        backgroundColor: AppTheme.primaryColor,
       ),
     );
   }
@@ -197,8 +196,8 @@ class OrderCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         margin: EdgeInsets.symmetric(vertical: 8),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
         child: Padding(
           padding: EdgeInsets.all(12),
           child: Column(

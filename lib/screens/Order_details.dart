@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:happy_farm/utils/app_theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
@@ -40,11 +41,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = Color(0xFF007B4F);
+    final Color primaryColor = AppTheme.primaryColor;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Order Details', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: Text('Order Details'),
+        centerTitle: true,
         backgroundColor: primaryColor,
         elevation: 0,
       ),

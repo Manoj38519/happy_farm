@@ -1,9 +1,8 @@
-// lib/screens/personal_info_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:happy_farm/models/user_model.dart';
+import 'package:happy_farm/models/user_provider.dart';
+import 'package:happy_farm/service/Auth_service.dart';
+import 'package:provider/provider.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -13,136 +12,153 @@ class PersonalInfoScreen extends StatefulWidget {
 }
 
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
-  String name = '';
-  String email = '';
-  String phone = '';
-  // DateTime date='' as DateTime;
+  final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    fetchPersonalInfo();
   }
 
-  Future<void> fetchPersonalInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString('token');
+  Future<void> updatePersonalInfo() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    if (userId != null && token != null) {
-      final url = Uri.parse('https://api.sabbafarm.com/api/user/$userId');
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': '$token',
-        },
-      );
+  setState(() {
+    _isLoading = true;
+  });
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          name = data['name'] ?? '';
-          email = data['email'] ?? '';
-          phone = data['phone'] ?? '';
-          // date =data['date']?? "" as DateTime;
-        });
-      } else {
-        print('Failed to fetch user details: ${response.statusCode}');
-      }
-    }
+  final authService = AuthService();
+  final result = await authService.updatePersonalInfo(
+    name: _nameController.text,
+    email: _emailController.text,
+    phone: _phoneController.text,
+  );
+
+  setState(() {
+    _isLoading = false;
+  });
+
+  if (result.containsKey('error')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['error'])),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Details updated successfully!')),
+    );
+    Provider.of<UserProvider>(context, listen: false).updateUserDetails(
+      UserModel(
+        username: result['name'],
+        email: result['email'],
+        phoneNumber: result['phone'],
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context, listen: false).user;
+    _nameController.text = user.username ?? "";
+    _emailController.text = user.email ?? "";
+    _phoneController.text = user.phoneNumber ?? "";
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text("Personal Information")),
+        title: const Text("Personal Info"),
+        centerTitle: true,
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
+      ),
+      body: _nameController.text.isEmpty &&
+              _emailController.text.isEmpty &&
+              _phoneController.text.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    _buildTextField(
+                      controller: _nameController,
+                      icon: Icons.person,
+                      label: 'Full Name',
+                      validator: (val) => val!.isEmpty ? 'Enter name' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _emailController,
+                      icon: Icons.email,
+                      label: 'Email Address',
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (val) =>
+                          val!.contains('@') ? null : 'Enter valid email',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _phoneController,
+                      icon: Icons.phone,
+                      label: 'Phone Number',
+                      keyboardType: TextInputType.phone,
+                      validator: (val) =>
+                          val!.length >= 10 ? null : 'Enter valid phone number',
+                    ),
+                    const SizedBox(height: 30),
+                    ElevatedButton.icon(
+                      onPressed: _isLoading ? null : updatePersonalInfo,
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.save),
+                      label: const Text('Save Changes'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-      body: name.isEmpty && email.isEmpty && phone.isEmpty
-    ? const Center(child: CircularProgressIndicator())
-    : ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: CircleAvatar(
-              radius: 100,
-              backgroundImage: AssetImage('assets/images/profile_logo.png'), // Replace with your image path
-              backgroundColor: Colors.grey.shade200,
-            ),
-          ),
-          const SizedBox(height: 24),
-          _infoCard(Icons.person, 'Name', name),
-          const SizedBox(height: 16),
-          _infoCard(Icons.email, 'Email', email),
-          const SizedBox(height: 16),
-          _infoCard(Icons.phone, 'Phone', phone),
-          const SizedBox(height: 16),
-          // _infoCard(Icons.calendar_today, 'Created Date', date.toString().split(' ')[0]),
-        ],
-      ),
-
-floatingActionButton: FloatingActionButton.extended(
-  onPressed: () {
-    Navigator.pushNamed(context, '/updateDetails'); // Define route accordingly
-  },
-  label: const Text('Update Details'),
-  icon: const Icon(Icons.edit),
-  backgroundColor: Colors.green.shade700,
-),
-
     );
   }
 
-  Widget _infoCard(IconData icon, String label, String value) {
-  return Card(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    elevation: 3,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.green.shade700),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ],
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required IconData icon,
+    required String label,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.green.shade700),
+        labelText: label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.green.shade700, width: 2),
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 }
