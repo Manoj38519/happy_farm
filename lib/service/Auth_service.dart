@@ -3,9 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  final String _baseUrl = 'https://api.sabbafarm.com/api/user';
+  final String _baseUrl = 'https://happyfarm-server.onrender.com/api/user';
   
 
+
+  //user sign in 
   Future<Map<String, dynamic>?> signIn({
     required String phone,
     required String password,
@@ -33,6 +35,8 @@ class AuthService {
     }
   }
 
+
+  //Sign Up user
   Future<Map<String, dynamic>?> signUp({
     required String name,
     required String phone,
@@ -66,6 +70,29 @@ class AuthService {
       return {'error': 'An error occurred: $e'};
     }
   }
+  
+  //fetch User Details
+  Future<Map<String, dynamic>?> fetchUserDetails(String userId) async {
+     final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    final response = await http.get(
+      Uri.parse('$_baseUrl/$userId'),
+      headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      print('Failed to fetch user details');
+      return null;
+    }
+  }
+
+
+  //update User Info
   Future<Map<String, dynamic>> updatePersonalInfo({
     required String name,
     required String email,

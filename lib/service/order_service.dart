@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class CheckoutService {
-  static const String baseUrl='https://api.sabbafarm.com/api';
+class OrderService {
+  static const String baseUrl='https://happyfarm-server.onrender.com/api';
   Future<Map<String, String>> _getAuthHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -11,21 +11,6 @@ class CheckoutService {
       'Content-Type': 'application/json',
       'Authorization': '$token',
     };
-  }
-
-  Future<Map<String, dynamic>?> fetchUserDetails(String userId) async {
-    final headers = await _getAuthHeaders();
-    final response = await http.get(
-      Uri.parse('$baseUrl/user/$userId'),
-      headers: headers,
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      print('Failed to fetch user details');
-      return null;
-    }
   }
 
   Future<Map<String, dynamic>?> createOrder({

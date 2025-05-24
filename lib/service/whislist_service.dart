@@ -3,12 +3,15 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WishlistService {
-  static const String baseUrl='https://api.sabbafarm.com/api';
+  static const String baseUrl = 'https://happyfarm-server.onrender.com/api/my-list';
+
   static Future<List<Map<String, dynamic>>> fetchWishlist() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? userId = prefs.getString('userId');
-    final String? token = prefs.getString('token');final response = await http.get(
-      Uri.parse('$baseUrl/api/my-list?userId=$userId'),
+    final String? token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl?userId=$userId'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -31,12 +34,12 @@ class WishlistService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
-    final url = Uri.parse('$baseUrl/my-list/$wishlistItemId');
+    final url = Uri.parse('$baseUrl/$wishlistItemId');
 
     final response = await http.delete(
       url,
       headers: {
-        'Authorization': '$token',
+        'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
     );
@@ -44,33 +47,44 @@ class WishlistService {
     return response.statusCode == 200;
   }
 
-  static Future<bool> addToCart({
-    required String productId,
-    required String priceId,
-    required int quantity,
-  }) async {
+  static Future<bool> addToMyList(String productId) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString('token');
-
-    if (userId == null) return false;
-
-    final body = {
-      "productId": productId,
-      "priceId": priceId,
-      "userId": userId,
-      "quantity": quantity,
-    };
+    final String? token = prefs.getString('token');
 
     final response = await http.post(
-      Uri.parse("$baseUrl/cart/add"),
+      Uri.parse('$baseUrl/add'),
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": token ?? "",
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
       },
-      body: json.encode(body),
+      body: json.encode({'productId': productId}),
     );
 
-    return response.statusCode == 201;
+    final result = json.decode(response.body);
+    if (response.statusCode == 201 && result['success'] == true) {
+      return true;
+    } else {
+      throw Exception(result['message'] ?? 'Failed to add to wishlist');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getItemById(String itemId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/$itemId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final result = json.decode(response.body);
+    if (response.statusCode == 200 && result['success'] == true) {
+      return result['data'];
+    } else {
+      throw Exception(result['message'] ?? 'Failed to fetch item');
+    }
   }
 }

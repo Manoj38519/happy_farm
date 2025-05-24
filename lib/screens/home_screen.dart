@@ -1,14 +1,16 @@
 import 'dart:async';
-
+import 'package:happy_farm/service/banner_service.dart';
 import 'package:flutter/material.dart';
 import 'package:happy_farm/screens/filtered_products_screen.dart';
 import 'package:happy_farm/screens/productdetails_screen.dart';
-import 'package:happy_farm/service/home_service.dart';
 import 'package:happy_farm/widgets/shimmer_widget.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../widgets/custom_app_bar.dart';
 import '../models/banner_model.dart';
+import 'package:happy_farm/service/search_service.dart';
+import 'package:happy_farm/service/category_service.dart';
+import 'package:happy_farm/service/product_service.dart';
 
 enum HomePageView { home, menu, filtered }
 
@@ -48,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _searchResults = [];
   bool isSearch = false;
+  final _searchService = SearchService();
+  final _productService = ProductService();
   @override
   void initState() {
     super.initState();
@@ -55,8 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchFeaturedProducts();
     fetchCategories();
   }
-
-  final HomeService _homeService = HomeService();
 
   void _onSearchChanged(String query) async {
     setState(() {
@@ -71,9 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      final results = await _homeService.searchProducts(query);
+      final results = await _searchService.searchProducts(query: query);
       setState(() {
-        _searchResults = results;
+        _searchResults = results as List;
       });
     } catch (e) {
       print('Search error: $e');
@@ -85,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchCategories() async {
     try {
-      final categories = await _homeService.fetchCategories();
+      final categories = await CategoryService.fetchCategories();
       setState(() {
         _categories = categories;
       });
@@ -94,21 +96,59 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _fetchFilteredProducts({
-    int? minPrice,
-    int? maxPrice,
-    int? rating,
+  Future<void> _fetchProductsByRating({
+    double? rating,
   }) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final products = await _homeService.fetchFilteredProducts(
-        categoryId: selectedCatId,
+      final products = await _productService.getProductsByRating(
+        catId: selectedCatId,
+        rating: rating,
+      );
+      if (products.isNotEmpty) {
+        setState(() {
+          _filteredProducts = products;
+          _currentPage = HomePageView.filtered;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No filtered products found.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error fetching filtered products: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchProductsByPrice({
+    int? minPrice,
+    int? maxPrice,
+  }) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final products = await _productService.filterByPrice(
+        catId: selectedCatId,
         minPrice: minPrice,
         maxPrice: maxPrice,
-        rating: rating,
       );
       if (products.isNotEmpty) {
         setState(() {
@@ -140,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchFeaturedProducts() async {
     try {
-      final products = await _homeService.fetchFeaturedProducts();
+      final products = await _productService.getFeaturedProducts();
       setState(() {
         _featuredProducts = products;
         _isLoading = false;
@@ -156,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final products = await _homeService.fetchProductsByCategory(catName);
+      final products = await _productService.getProductsByCatName(catName);
       setState(() {
         _filteredProducts = products;
       });
@@ -171,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchAllProducts() async {
     try {
-      final products = await _homeService.fetchAllProducts();
+      final products = await _productService.getProducts();
       setState(() {
         _allProducts = products;
         _isLoading = false;
@@ -411,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Future.delayed(const Duration(milliseconds: 2000), () {
                       // Only call backend when user finishes dragging
                       if (selectedCatId.isNotEmpty) {
-                        _fetchFilteredProducts(
+                        _fetchProductsByPrice(
                           minPrice: values.start.round(),
                           maxPrice: values.end.round(),
                         );
@@ -464,7 +504,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _selectedRating = stars;
                         });
 
-                        _fetchFilteredProducts(rating: _selectedRating);
+                        _fetchProductsByRating(
+                            rating: _selectedRating as double);
 
                         // Auto-remove checkmark after 2 seconds
                         Future.delayed(const Duration(seconds: 2), () {
@@ -830,8 +871,7 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   Timer? _timer;
-
-  final HomeService _homeService = HomeService(); // Add this
+  final _bannerService=BannerService();
 
   @override
   void initState() {
@@ -841,7 +881,7 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
 
   Future<void> fetchBanners() async {
     try {
-      final banners = await _homeService.fetchBanners(); // Use service
+      final banners = await _bannerService.fetchMainBanners(); // Use service
       setState(() {
         _banners = banners;
       });
@@ -876,7 +916,6 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
     _pageController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {

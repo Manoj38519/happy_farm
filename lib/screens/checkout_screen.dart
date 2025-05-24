@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:happy_farm/models/cart_model.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:happy_farm/service/checkout_service.dart';
-
+import 'package:happy_farm/service/order_service.dart';
+import 'package:happy_farm/service/Auth_service.dart';
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
   final int totalAmount;
@@ -22,7 +20,9 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  final checkoutService = CheckoutService();
+  final _orderService = OrderService();
+  final _authService=AuthService();
+
   late Razorpay _razorpay;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -58,7 +58,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     userId = prefs.getString('userId');
 
     if (userId != null) {
-      final data = await checkoutService.fetchUserDetails(userId!);
+      final data = await _authService.fetchUserDetails(userId!);
       if (data != null) {
         setState(() {
           _nameController.text = data['name'] ?? '';
@@ -70,7 +70,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
     void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    final verified = await checkoutService.verifyPayment(
+    final verified = await _orderService.verifyPayment(
       razorpayOrderId: response.orderId!,
       razorpayPaymentId: response.paymentId!,
       razorpaySignature: response.signature!,
@@ -103,7 +103,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final fullAddress =
         '${_address1Controller.text}, ${_address2Controller.text}, ${_cityController.text}, ${_stateController.text}, ${_countryController.text}';
 
-    final orderResponse = await checkoutService.createOrder(
+    final orderResponse = await _orderService.createOrder(
       name: _nameController.text,
       phoneNumber: _phoneController.text,
       email: _emailController.text,
