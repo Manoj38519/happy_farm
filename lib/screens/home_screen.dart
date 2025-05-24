@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchProductsByRating({
-    double? rating,
+    int? rating,
   }) async {
     setState(() {
       _isLoading = true;
@@ -505,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         });
 
                         _fetchProductsByRating(
-                            rating: _selectedRating as double);
+                            rating: _selectedRating);
 
                         // Auto-remove checkmark after 2 seconds
                         Future.delayed(const Duration(seconds: 2), () {
@@ -880,16 +880,24 @@ class _AutoScrollBannerState extends State<AutoScrollBanner> {
   }
 
   Future<void> fetchBanners() async {
-    try {
-      final banners = await _bannerService.fetchMainBanners(); // Use service
-      setState(() {
-        _banners = banners;
-      });
-      _startAutoScroll();
-    } catch (e) {
-      print('Error fetching banners: $e');
-    }
+  setState(() {
+  });
+
+  try {
+    final banners = await _bannerService.fetchMainBanners();
+    if (!mounted) return;
+    setState(() {
+      _banners = banners;
+    });
+    _startAutoScroll();
+  } catch (e) {
+    print('Error fetching banners: $e');
+    if (!mounted) return;
+    setState(() {
+    });
   }
+}
+
 
   void _startAutoScroll() {
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {

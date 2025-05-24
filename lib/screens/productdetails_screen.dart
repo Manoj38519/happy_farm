@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/product_model.dart';
 import 'package:happy_farm/models/user_provider.dart';
-import 'package:happy_farm/screens/login_screen.dart';
+import 'package:happy_farm/service/cart_service.dart';
+import 'package:happy_farm/service/review_service.dart';
+import 'package:happy_farm/service/whislist_service.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
 class ProductDetails extends StatefulWidget {
   final dynamic
       product; // Can be FeaturedProduct, AllProduct, or FilterProducts
@@ -83,277 +81,180 @@ class _ProductDetailsState extends State<ProductDetails> {
     return widget.product.prices;
   }
 
-  Future<void> checkWishlistStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString('token');
+ Future<void> checkWishlistStatus() async {
+  setState(() {
+    isWishLoad = true;
+  });
 
-    if (userId == null || token == null) return;
+  try {
+    final wishlist = await WishlistService.fetchWishlist();
+
+    final matchedItem = wishlist.firstWhere(
+      (item) => item['productId']['_id'] == getProductId(),
+      orElse: () => <String, dynamic>{}, // return an empty map
+    );
+
+    final found = matchedItem.isNotEmpty;
+
     setState(() {
-      isWishLoad = true;
+      isWishlist = found;
+      wishId = found ? matchedItem['_id'] : null;
     });
-    try {
-      final response = await http.get(
-          Uri.parse("https://api.sabbafarm.com/api/my-list?userId=$userId"),
-          headers: {"Authorization": token});
-
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body) as Map<String, dynamic>;
-        final List<dynamic> wishlist = decoded['data'];
-        final matchedItem = wishlist.firstWhere(
-          (item) => item['productId']['_id'] == getProductId(),
-          orElse: () => null,
-        );
-
-        setState(() {
-          isWishlist = matchedItem != null;
-          wishId = matchedItem?['_id']; // safely assigns null if not found
-        });
-      }
-    } catch (e) {
-      print(e);
-    } finally {
+  } catch (e) {
+    print('Error checking wishlist status: $e');
+  } finally {
+    setState(() {
       isWishLoad = false;
-    }
+    });
   }
+}
+Future<void> fetchReviews() async {
+  setState(() {
+    isLoadingReviews = true;
+  });
 
-  Future<void> fetchReviews() async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-            "https://api.sabbafarm.com/api/productReviews?productId=${getProductId()}"),
-      );
+  try {
+    final response = await ReviewService().getReviews(productId: getProductId());
 
-      if (response.statusCode == 200) {
-        setState(() {
-          reviews = json.decode(response.body);
-          isLoadingReviews = false;
-        });
-      } else {
-        setState(() {
-          isLoadingReviews = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to load reviews")),
-        );
-      }
-    } catch (e) {
+    if (response['success'] == true && response['data'] != null) {
       setState(() {
-        isLoadingReviews = false;
+        reviews = response['data'];
       });
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error loading reviews: $e")),
+        SnackBar(content: Text(response['message'] ?? "Failed to load reviews")),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error loading reviews: $e")),
+    );
+  } finally {
+    setState(() {
+      isLoadingReviews = false;
+    });
   }
+}
+
 
   Future<void> addWishList() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString('token');
-    final productId = getProductId();
+  final productId = getProductId();
 
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User not logged in")),
-      );
-      return;
-    }
-
-    final body = {
-      "productId": productId,
-      "userId": userId,
-    };
-
-    final response = await http.post(
-      Uri.parse("https://api.sabbafarm.com/api/my-list/add"),
-      headers: {"Content-Type": "application/json", "Authorization": "$token"},
-      body: json.encode(body),
-    );
-    if (response.statusCode == 201) {
-      final decoded = json.decode(response.body);
-      print(response.body);
+  try {
+    final success = await WishlistService.addToMyList(productId);
+    if (success) {
       setState(() {
         isWishlist = true;
-        wishId = decoded['_id'];
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Added to wishlist")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed: ${response.body}")),
+        const SnackBar(content: Text("Added to wishlist")),
       );
     }
-  }
-
-  void removeWishlist() async {
-    final wishlistItemId = wishId;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
-
-    final url =
-        Uri.parse('https://api.sabbafarm.com/api/my-list/$wishlistItemId');
-    print(wishlistItemId);
-    try {
-      final response = await http.delete(
-        url,
-        headers: {
-          'Authorization': '$token',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode == 200) {
-        setState(() {
-          isWishlist = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Item removed from wishlist')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove item')),
-        );
-      }
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  Future<void> addToCart() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString("token");
-    final price = getProductPrices()[selectedPriceIndex];
-
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User not logged in")),
-      );
-      return;
-    }
-
-    final body = {
-      "productId": getProductId(),
-      "priceId": price.id,
-      "userId": userId,
-      "quantity": quantity,
-    };
-
-    final response = await http.post(
-      Uri.parse("https://api.sabbafarm.com/api/cart/add"),
-      headers: {"Content-Type": "application/json", "Authorization": "$token"},
-      body: json.encode(body),
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Failed to add to wishlist: $e")),
     );
+  }
+}
 
-    if (response.statusCode == 201) {
+  Future<void> removeWishlist() async {
+  final wishlistItemId = wishId;
+  try {
+    final success = await WishlistService.removeFromWishlist(wishlistItemId);
+    if (success) {
+      setState(() {
+        isWishlist = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Added to cart!")),
+        const SnackBar(content: Text('Item removed from wishlist')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to add: ${response.body}")),
+        const SnackBar(content: Text('Failed to remove item')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
   }
+}
 
-  Future<void> submitReview() async {
-    final reviewText = reviewController.text.trim();
+ Future<void> addToCart() async {
+  final productId = getProductId();
+  final price = getProductPrices()[selectedPriceIndex];
 
-    if (reviewText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Please add a Review"), backgroundColor: Colors.red),
-      );
-      return;
-    }
+  final success = await CartService.addToCart(
+    productId: productId,
+    priceId: price.id,
+    quantity: quantity,
+  );
 
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    final token = prefs.getString('token');
-
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text("Please Login first"), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    final user = Provider.of<UserProvider>(context, listen: false).user;
-    final Map<String, dynamic> reviewData = {
-      "productId": getProductId(),
-      "customerName": user.username,
-      "customerId": userId,
-      "review": reviewText,
-      "customerRating": reviewRating,
-    };
-
-    setState(() {
-      isSubmitting = true;
-    });
-
-    try {
-      final response = await http.post(
-        Uri.parse("https://api.sabbafarm.com/api/productReviews/add"),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(reviewData),
-      );
-
-      if (response.statusCode == 201) {
-        reviewController.clear();
-        setState(() {
-          reviewRating = 1;
-        });
-
-        // Fetch updated reviews
-        fetchReviews();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Review submitted successfully!")),
-        );
-      } else {
-        throw Exception("Failed to submit review: ${response.statusCode}");
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() {
-        isSubmitting = false;
-      });
-    }
+  if (success) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Added to cart!")),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to add to cart")),
+    );
   }
+}
 
-  void _showLoginDialog({required Function onLogin}) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Login Required'),
-        content: const Text('Please log in to continue.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-            child: const Text('OK'),
-          ),
-        ],
+
+ Future<void> submitReview() async {
+  final reviewText = reviewController.text.trim();
+
+  if (reviewText.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please add a Review"),
+        backgroundColor: Colors.red,
       ),
     );
+    return;
   }
+
+  final user = Provider.of<UserProvider>(context, listen: false).user;
+
+  setState(() {
+    isSubmitting = true;
+  });
+
+  try {
+    final result = await ReviewService.addReview(
+      productId: getProductId(),
+      reviewText: reviewText,
+      customerRating: reviewRating,
+      customerName: user.username,
+    );
+
+    if (result['success'] == true) {
+      reviewController.clear();
+      setState(() {
+        reviewRating = 1;
+      });
+
+      // Fetch updated reviews
+      fetchReviews();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Review submitted successfully!")),
+      );
+    } else {
+      throw Exception(result['message'] ?? "Failed to submit review");
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+    );
+  } finally {
+    setState(() {
+      isSubmitting = false;
+    });
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -476,14 +377,8 @@ class _ProductDetailsState extends State<ProductDetails> {
           top: 16,
           right: 16,
           child: GestureDetector(
-            onTap: () async {
-              SharedPreferences prefs = await SharedPreferences.getInstance();
-              final token = prefs.getString('token');
-              final userId = prefs.getString('userId');
-
-              if (token == null || userId == null) {
-                _showLoginDialog(onLogin: () {});
-              } else {
+            onTap: () {
+              if (!isWishLoad) {
                 isWishlist ? removeWishlist() : addWishList();
               }
             },
@@ -620,16 +515,8 @@ class _ProductDetailsState extends State<ProductDetails> {
 
         // Add to Cart Button
         ElevatedButton.icon(
-          onPressed: () async {
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            final token = prefs.getString('token');
-            final userId = prefs.getString('userId');
-
-            if (token == null || userId == null) {
-              _showLoginDialog(onLogin: () {});
-            } else {
+          onPressed: (){
               addToCart();
-            }
           },
           icon: const Icon(
             Icons.shopping_cart,

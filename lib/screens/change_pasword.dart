@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
 import 'package:happy_farm/models/user_provider.dart';
+import 'package:happy_farm/service/user_service.dart';
 import 'package:happy_farm/utils/app_theme.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ChangePassword extends StatefulWidget {
   const ChangePassword({Key? key}) : super(key: key);
@@ -17,77 +15,46 @@ class ChangePassword extends StatefulWidget {
 class _ChangePasswordState extends State<ChangePassword> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordControler =
-      TextEditingController();
+  final TextEditingController _confirmPasswordControler =TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+Future<void> _changePassword(String email) async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
 
-  Future<void> _changePassword(String email) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  final newPassword = _newPasswordController.text.trim();
 
-    final url = Uri.parse(
-      'https://api.sabbafarm.com/api/user/forgotPassword/changePassword',
-    );
+  try {
+    final success = await UserService().changeForgotPassword(email, newPassword);
 
-    final body = {
-      "email": email,
-      "currentPassword": _passwordController.text.trim(),
-      "newPassword": _newPasswordController.text.trim(),
-    };
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-
-      if (token == null) {
-        setState(() {
-          _errorMessage = 'Unauthorized. Please log in again.';
-        });
-        return;
-      }
-
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password changed successfully!')),
       );
-
-      final responseData = jsonDecode(response.body);
-      print(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password changed successfully!')),
-        );
-
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => MainScreen()),
-        );
-      } else {
-        setState(() {
-          _errorMessage =
-              responseData['message'] ?? 'Password change failed. Try again.';
-        });
-      }
-    } catch (e) {
-      print('Error: $e');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => MainScreen()),
+      );
+    } else {
       setState(() {
-        _errorMessage = 'An error occurred. Check your internet connection.';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
+        _errorMessage = 'Password change failed. Please try again.';
       });
     }
+  } catch (e) {
+    print('Error: $e');
+    setState(() {
+      _errorMessage = 'An unexpected error occurred.';
+    });
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
 
   InputDecoration _inputDecoration(String label, IconData prefixIcon,
       {bool isPassword = false}) {

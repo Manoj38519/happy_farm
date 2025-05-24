@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
-import 'package:happy_farm/screens/Order_details.dart';
+import 'package:happy_farm/screens/order_details.dart';
+import 'package:happy_farm/service/order_service.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:happy_farm/widgets/order_shimmer.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,38 +28,34 @@ class _OrdersScreenState extends State<OrdersScreen>
     fetchOrders();
   }
 
-  Future<void> fetchOrders() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId');
+ Future<void> fetchOrders() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
 
-      if (userId == null) {
-        print("User ID not found in SharedPreferences");
-        setState(() => isLoading = false);
-        return;
-      }
-
-      final response =
-          await http.get(Uri.parse("https://api.sabbafarm.com/api/orders/"));
-      if (response.statusCode == 200) {
-        final allOrders = json.decode(response.body);
-        final userOrders =
-            allOrders.where((order) => order['userid'] == userId).toList();
-
-        print(userOrders);
-
-        setState(() {
-          orders = userOrders;
-          isLoading = false;
-        });
-      } else {
-        throw Exception('Failed to load orders');
-      }
-    } catch (e) {
-      print(e);
+    if (userId == null) {
+      print("User ID not found in SharedPreferences");
       setState(() => isLoading = false);
+      return;
     }
+
+    final allOrders = await OrderService().fetchAllOrders();
+
+    if (allOrders == null) {
+      setState(() => isLoading = false);
+      return;
+    }
+    final userOrders = allOrders.where((order) => order['userid'] == userId).toList();
+    setState(() {
+      orders = userOrders;
+      isLoading = false;
+    });
+  } catch (e) {
+    print('Error in fetchOrders: $e');
+    setState(() => isLoading = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

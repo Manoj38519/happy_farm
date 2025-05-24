@@ -3,9 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReviewService {
-  final String baseUrl = 'https://happyfarm-server.onrender.com/api/productReviews';
+  static String baseUrl = 'https://happyfarm-server.onrender.com/api/productReviews';
 
-  Future<Map<String, String>> getHeaders() async {
+  static Future<Map<String, String>> getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
     return {
@@ -46,13 +46,13 @@ class ReviewService {
   }
 
   /// Add a new review
-  Future<Map<String, dynamic>> addReview({
+  static Future<Map<String, dynamic>> addReview({
     required String productId,
     required String reviewText,
     required int customerRating,
     String? customerName,
   }) async {
-    final headers = await getHeaders();
+    final headers = await getHeaders();  // now valid, both static
     final uri = Uri.parse('$baseUrl/add');
 
     final body = json.encode({

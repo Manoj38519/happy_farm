@@ -65,4 +65,47 @@ class OrderService {
 
     return response.statusCode == 200;
   }
+  // Fetch all orders for the authenticated user
+  Future<List<dynamic>?> fetchAllOrders() async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/orders'),
+        headers:headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data']; // List of orders
+      } else {
+        print('Failed to fetch orders: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching all orders: $e');
+      return null;
+    }
+  }
+
+  // Fetch a specific order by ID
+  Future<Map<String, dynamic>?> fetchOrderById(String orderId) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/orders/$orderId'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['data']; // Single order object
+      } else {
+        print('Failed to fetch order by ID: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching order by ID: $e');
+      return null;
+    }
+  }
 }

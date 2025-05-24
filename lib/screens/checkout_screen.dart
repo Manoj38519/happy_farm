@@ -4,7 +4,7 @@ import 'package:happy_farm/utils/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:happy_farm/service/order_service.dart';
-import 'package:happy_farm/service/Auth_service.dart';
+import 'package:happy_farm/service/user_service.dart';
 class CheckoutScreen extends StatefulWidget {
   final List<CartItem> cartItems;
   final int totalAmount;
@@ -21,7 +21,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _orderService = OrderService();
-  final _authService=AuthService();
+  final _authService=UserService();
 
   late Razorpay _razorpay;
   final TextEditingController _nameController = TextEditingController();

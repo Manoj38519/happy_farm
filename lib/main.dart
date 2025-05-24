@@ -1,18 +1,16 @@
-import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/user_provider.dart';
 import 'package:happy_farm/screens/login_screen.dart';
 import 'package:happy_farm/screens/order_screen.dart';
 import 'package:happy_farm/screens/profile_screen.dart';
 import 'package:happy_farm/screens/wishlist_screen.dart';
+import 'package:happy_farm/service/user_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:happy_farm/screens/cart_screen.dart';
 import 'package:happy_farm/screens/home_screen.dart';
 import 'utils/app_theme.dart';
-import 'package:http/http.dart' as http;
 
 void main() {
   HttpOverrides.global = MyHttpOverrides();
@@ -68,34 +66,24 @@ class _MainScreenState extends State<MainScreen> {
     getUser();
   }
 
-  Future<void> getUser() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-    String? userId = prefs.getString('userId');
-    if (userId != null && token != null) {
-      final url = Uri.parse('https://api.sabbafarm.com/api/user/$userId');
+Future<void> getUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  final userId = prefs.getString('userId');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': '$token',
-        },
+  if (userId != null) {
+    final userData = await UserService().fetchUserDetails(userId);
+
+    if (userData != null) {
+      Provider.of<UserProvider>(context, listen: false).setUser(
+        username: userData['name'] ?? 'No Name',
+        email: userData['email'] ?? 'No Email',
+        phoneNumber: userData['phone'] ?? 'No Phone',
       );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print(data['name']);
-
-        Provider.of<UserProvider>(context, listen: false).setUser(
-          username: data['name'],
-          email: data['email'],
-          phoneNumber: data['phone'],
-        );
-      } else {
-        print('Failed to load profile: ${response.statusCode}');
-      }
     }
   }
+}
+
+
 
   Future<void> _checkLoginStatus() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

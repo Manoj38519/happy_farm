@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
 import 'package:happy_farm/models/user_provider.dart';
+import 'package:happy_farm/screens/change_pasword.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:happy_farm/screens/signup_screen.dart';
-import 'package:happy_farm/service/auth_service.dart';
+import 'package:happy_farm/service/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService authService = AuthService();
+  final UserService authService = UserService();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -128,7 +129,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // Handle Forgot Password
+                      Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChangePassword(),
+                    ),
+                  );
                     },
                     child: const Text(
                       'Forgot Password?',

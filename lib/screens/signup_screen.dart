@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:happy_farm/screens/login_screen.dart';
-import 'package:happy_farm/service/Auth_service.dart';
+import 'package:happy_farm/service/user_service.dart';
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
 
@@ -15,7 +15,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final AuthService _authService=AuthService();
+  final UserService _authService=UserService();
   bool _isLoading = false;
   String? _errorMessage;
 

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthService {
+class UserService {
   final String _baseUrl = 'https://happyfarm-server.onrender.com/api/user';
   
 
@@ -130,5 +130,35 @@ class AuthService {
       return {'error': 'An error occurred: $e'};
     }
   }
+
+  //Change Password
+  Future<bool> changeForgotPassword(String email, String newPassword) async {
+    final url = Uri.parse('$_baseUrl/forgotPassword/changePassword');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'newPass': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print(" Password change: ${data['message']}");
+        return true;
+      } else {
+        final error = jsonDecode(response.body);
+        print("Failed to change password: ${error['msg'] ?? response.body}");
+        return false;
+      }
+    } catch (e) {
+      print(' Error in changeForgotPassword: $e');
+      return false;
+    }
+  }
 }
+
 

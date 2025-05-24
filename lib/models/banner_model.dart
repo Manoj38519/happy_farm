@@ -7,7 +7,7 @@ class BannerModel {
   factory BannerModel.fromJson(Map<String, dynamic> json) {
     return BannerModel(
       id: json['_id'],
-      imageUrl: json['images'] != null && json['images'].isNotEmpty ? json['images'][0] : '',
+      imageUrl: json['imageUrl'] ?? '',
     );
   }
 }

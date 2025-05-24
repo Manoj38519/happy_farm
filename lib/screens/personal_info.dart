@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/user_model.dart';
 import 'package:happy_farm/models/user_provider.dart';
-import 'package:happy_farm/service/Auth_service.dart';
+import 'package:happy_farm/service/user_service.dart';
 import 'package:provider/provider.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
@@ -31,7 +31,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     _isLoading = true;
   });
 
-  final authService = AuthService();
+  final authService = UserService();
   final result = await authService.updatePersonalInfo(
     name: _nameController.text,
     email: _emailController.text,

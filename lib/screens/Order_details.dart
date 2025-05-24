@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:happy_farm/service/order_service.dart';
 import 'package:happy_farm/utils/app_theme.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 class OrderDetailsPage extends StatefulWidget {
@@ -23,21 +22,20 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     fetchOrderDetails();
   }
 
-  Future<void> fetchOrderDetails() async {
-    final response = await http.get(
-      Uri.parse('https://api.sabbafarm.com/api/orders/${widget.orderId}'),
-    );
+Future<void> fetchOrderDetails() async {
+  try {
+    final data = await OrderService().fetchOrderById(widget.orderId);
 
-    if (response.statusCode == 200) {
-      setState(() {
-        orderData = json.decode(response.body);
-        isLoading = false;
-      });
-    } else {
-      setState(() => isLoading = false);
-      print('Failed to load order details');
-    }
+    setState(() {
+      orderData = data;
+      isLoading = false;
+    });
+  } catch (e) {
+    print('Error loading order details: $e');
+    setState(() => isLoading = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
