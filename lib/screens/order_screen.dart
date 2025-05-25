@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key, });
+  const OrdersScreen({super.key});
   @override
   _OrdersScreenState createState() => _OrdersScreenState();
 }
@@ -28,34 +28,35 @@ class _OrdersScreenState extends State<OrdersScreen>
     fetchOrders();
   }
 
- Future<void> fetchOrders() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
+  Future<void> fetchOrders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
 
-    if (userId == null) {
-      print("User ID not found in SharedPreferences");
+      if (userId == null) {
+        print("User ID not found in SharedPreferences");
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final response = await OrderService().fetchAllOrders();
+
+      if (response == null) {
+        print("No order data received");
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final userOrders = response.toList();
+
+      setState(() {
+        orders = userOrders;
+        isLoading = false;
+      });
+    } catch (e) {
       setState(() => isLoading = false);
-      return;
     }
-
-    final allOrders = await OrderService().fetchAllOrders();
-
-    if (allOrders == null) {
-      setState(() => isLoading = false);
-      return;
-    }
-    final userOrders = allOrders.where((order) => order['userid'] == userId).toList();
-    setState(() {
-      orders = userOrders;
-      isLoading = false;
-    });
-  } catch (e) {
-    print('Error in fetchOrders: $e');
-    setState(() => isLoading = false);
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +91,9 @@ class _OrdersScreenState extends State<OrdersScreen>
                       final filteredOrders = status == 'All'
                           ? orders
                           : orders
-                              .where((o) => o['orderStatus'] == status)
+                              .where((o) =>
+                                  o['orderStatus'].toString().toLowerCase() ==
+                                  status.toLowerCase())
                               .toList();
 
                       if (filteredOrders.isEmpty) {
@@ -114,7 +117,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => OrderDetailsPage(
-                                      orderId: order['id'].toString()),
+                                      orderId: order['_id'].toString()),
                                 ),
                               );
                             },
@@ -130,9 +133,7 @@ class _OrdersScreenState extends State<OrdersScreen>
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => MainScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => MainScreen()),
           );
         },
         label: Text('Shop More'),
@@ -181,8 +182,9 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderDate =
-        DateFormat('MMM dd, yyyy').format(DateTime.parse(order['date']));
+    final orderDate = order['date'] != null
+        ? DateFormat('MMM dd, yyyy').format(DateTime.parse(order['date']))
+        : '';
     final totalAmount =
         double.tryParse(order['amount'].toString())?.toStringAsFixed(2) ??
             '0.00';
@@ -192,7 +194,9 @@ class OrderCard extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.symmetric(vertical: 8),
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade300)),
         child: Padding(
           padding: EdgeInsets.all(12),
           child: Column(
@@ -203,26 +207,27 @@ class OrderCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                      "ORD${order['id'].toString().substring(0, 6).toUpperCase()}",
+                      "ORD${order['_id'].toString().substring(0, 6).toUpperCase()}",
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(order['orderStatus'])
+                      color: _getStatusColor(order['orderStatus'] ?? '')
                           .withOpacity(0.1),
                       border: Border.all(
-                          color: _getStatusColor(order['orderStatus'])),
+                          color: _getStatusColor(order['orderStatus'] ?? '')),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        Icon(_getStatusIcon(order['orderStatus']),
-                            color: _getStatusColor(order['orderStatus']),
+                        Icon(_getStatusIcon(order['orderStatus'] ?? ''),
+                            color: _getStatusColor(order['orderStatus'] ?? ''),
                             size: 16),
                         SizedBox(width: 4),
                         Text(order['orderStatus'].toString().capitalize(),
                             style: TextStyle(
-                                color: _getStatusColor(order['orderStatus']),
+                                color:
+                                    _getStatusColor(order['orderStatus'] ?? ''),
                                 fontSize: 12)),
                       ],
                     ),
@@ -236,7 +241,8 @@ class OrderCard extends StatelessWidget {
                 children: [
                   Text("Order Date\n$orderDate",
                       style: TextStyle(fontSize: 13)),
-                  Text("Items\n${order['products'].length} items",
+                  Text(
+                      "Items\n${(order['products'] as List?)?.length ?? 0} items",
                       style: TextStyle(fontSize: 13)),
                   Text("Total\n₹$totalAmount",
                       style: TextStyle(
@@ -270,5 +276,5 @@ class OrderCard extends StatelessWidget {
 
 extension StringExtension on String {
   String capitalize() =>
-      this.length > 0 ? '${this[0].toUpperCase()}${this.substring(1)}' : '';
+      this.isNotEmpty ? '${this[0].toUpperCase()}${this.substring(1)}' : '';
 }
