@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
 import 'package:happy_farm/models/user_provider.dart';
-import 'package:happy_farm/screens/change_pasword.dart';
+import 'package:happy_farm/screens/forgot_pasword.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:happy_farm/screens/signup_screen.dart';
@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ChangePassword(),
+                      builder: (context) => ForgotPassWord(),
                     ),
                   );
                     },

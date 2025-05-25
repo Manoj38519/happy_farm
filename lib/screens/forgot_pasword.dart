@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
-import 'package:happy_farm/models/user_provider.dart';
 import 'package:happy_farm/service/user_service.dart';
 import 'package:happy_farm/utils/app_theme.dart';
-import 'package:provider/provider.dart';
 
-class ChangePassword extends StatefulWidget {
-  const ChangePassword({Key? key}) : super(key: key);
+class ForgotPassWord extends StatefulWidget {
+  const ForgotPassWord({Key? key}) : super(key: key);
 
   @override
-  State<ChangePassword> createState() => _ChangePasswordState();
+  State<ForgotPassWord> createState() => _ChangePasswordState();
 }
 
-class _ChangePasswordState extends State<ChangePassword> {
-  final TextEditingController _passwordController = TextEditingController();
+class _ChangePasswordState extends State<ForgotPassWord> {
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordControler =TextEditingController();
 
@@ -112,7 +110,6 @@ Future<void> _changePassword(String email) async {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context, listen: false).user;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -142,10 +139,9 @@ Future<void> _changePassword(String email) async {
                 Column(
                   children: [
                     TextField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
+                      controller: _emailController,
                       decoration: _inputDecoration(
-                          'Old Password', Icons.lock_outline,
+                          'Your email', Icons.lock_outline,
                           isPassword: true),
                       style: const TextStyle(fontSize: 16),
                     ),
@@ -217,12 +213,12 @@ Future<void> _changePassword(String email) async {
                     onPressed: _isLoading
                         ? null
                         : () {
-                            final current = _passwordController.text.trim();
+                            final email = _emailController.text.trim();
                             final newPwd = _newPasswordController.text.trim();
                             final confirmPwd =
                                 _confirmPasswordControler.text.trim();
 
-                            if (current.isEmpty ||
+                            if (email.isEmpty ||
                                 newPwd.isEmpty ||
                                 confirmPwd.isEmpty) {
                               setState(() =>
@@ -236,13 +232,7 @@ Future<void> _changePassword(String email) async {
                               return;
                             }
 
-                            if (current == newPwd) {
-                              setState(() => _errorMessage =
-                                  'New password must be different.');
-                              return;
-                            }
-
-                            _changePassword(user.email ?? 'Unknown');
+                            _changePassword(email);
                           },
                     child: _isLoading
                         ? const SizedBox(

@@ -131,7 +131,7 @@ class UserService {
     }
   }
 
-  //Change Password
+  //Forgot Password
   Future<bool> changeForgotPassword(String email, String newPassword) async {
     final url = Uri.parse('$_baseUrl/forgotPassword/changePassword');
 
@@ -146,17 +146,61 @@ class UserService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print(" Password change: ${data['message']}");
+        // final data = jsonDecode(response.body);
         return true;
       } else {
-        final error = jsonDecode(response.body);
-        print("Failed to change password: ${error['msg'] ?? response.body}");
+        // final error = jsonDecode(response.body);
         return false;
       }
     } catch (e) {
-      print(' Error in changeForgotPassword: $e');
       return false;
+    }
+  }
+  //Update Password
+  Future<Map<String, dynamic>> changePassword({
+    required String email,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    final token = prefs.getString('token');
+
+    if (token == null || userId == null) {
+      return {
+        'success': false,
+        'message': 'Unauthorized. Please log in again.',
+      };
+    }
+
+    final url = Uri.parse('$_baseUrl/changePassword/$userId');
+
+    final body = {
+      'email': email,
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      final responseData = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 && responseData['success'] == true,
+        'message': responseData['message'] ?? 'Password change failed.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'An error occurred. Check your internet connection.',
+      };
     }
   }
 }

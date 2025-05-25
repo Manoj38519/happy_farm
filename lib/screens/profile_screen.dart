@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/main.dart';
 import 'package:happy_farm/models/user_provider.dart';
-import 'package:happy_farm/screens/change_pasword.dart';
+import 'package:happy_farm/screens/update_password.dart';
 import 'package:happy_farm/utils/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -121,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'function': () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (builder) => ChangePassword(),
+              builder: (builder) => UpdatePassword(),
             ),
           );
         }
