@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_farm/models/product_model.dart';
 import 'package:happy_farm/screens/productdetails_screen.dart';
+import 'package:happy_farm/service/cart_service.dart' show CartService;
 import 'package:happy_farm/widgets/wishListShimmer.dart';
 import 'package:happy_farm/service/Whislist_service.dart';
 
@@ -145,8 +146,7 @@ class _WishlistScreenState extends State<WishlistScreen>
 
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content:
-                                      Text('$title removed from wishlist'),
+                                  content: Text('$title removed from wishlist'),
                                   action: SnackBarAction(
                                     label: 'UNDO',
                                     onPressed: () {
@@ -174,8 +174,7 @@ class _WishlistScreenState extends State<WishlistScreen>
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                      color: Colors.grey.shade300),
+                                  side: BorderSide(color: Colors.grey.shade300),
                                 ),
                                 margin: const EdgeInsets.only(bottom: 16),
                                 child: Padding(
@@ -286,10 +285,35 @@ class _WishlistScreenState extends State<WishlistScreen>
       ),
       floatingActionButton: wishlist.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: () {
+              onPressed: () async {
+                bool allSuccess = true;
+
+                for (var item in wishlist) {
+                  final product = item['productId'];
+                  final prices = product['prices'];
+
+                  if (prices != null && prices.isNotEmpty) {
+                    final priceObj = prices[0];
+                    final productId = product['_id'];
+                    final priceId = priceObj['_id'];
+
+                    bool success = await CartService.addToCart(
+                      productId: productId,
+                      priceId: priceId,
+                      quantity: 1,
+                    );
+
+                    if (!success) {
+                      allSuccess = false;
+                    }
+                  }
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('All items added to cart'),
+                  SnackBar(
+                    content: Text(allSuccess
+                        ? 'All items added to cart successfully'
+                        : 'Some items could not be added'),
                   ),
                 );
               },

@@ -41,6 +41,7 @@ dependencies:
   intl: ^0.18.0
   shimmer: ^2.0.0
   razorpay_flutter: ^1.4.0
+  lottie: ^3.0.0
 
 dev_dependencies:
   flutter_test:
